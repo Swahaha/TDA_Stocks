@@ -28,6 +28,7 @@ class MarketTDA:
         data['SP500'] = sp500.set_index('Date')['Close']
         data['Russell'] = russell.set_index('Date')['Close']
         data['NASDAQ'] = nasdaq.set_index('Date')['Close']
+        data.to_csv("combined dat")
         
         # Calculate returns
         returns = data.pct_change().dropna()
