@@ -23,7 +23,7 @@ class MarketTDA:
         returns = returns.replace([np.inf, -np.inf], np.nan)
         
         # Fill NaN values with forward fill then backward fill
-        returns = returns.fillna(method='ffill').fillna(method='bfill')
+        returns = returns.ffill().bfill()  # Updated to use new method
         
         # Scale the returns for each index separately
         scaled_data = pd.DataFrame(

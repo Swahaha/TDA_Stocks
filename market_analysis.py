@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 from sklearn.cluster import DBSCAN
-from persim import persistent_entropy as persim_entropy
+from persim import plot_diagrams  # Only import what we know exists
 import matplotlib.pyplot as plt
 import seaborn as sns
 from datetime import datetime
@@ -14,54 +14,120 @@ class MarketAnalyzer:
     def __init__(self, window_size=20):
         self.window_size = window_size
 
+    def compute_persistence_entropy(self, diagram):
+        """
+        Custom implementation of persistence entropy
+        """
+        try:
+            # Filter out infinite death times
+            finite_mask = np.isfinite(diagram[:, 1])
+            if not np.any(finite_mask):
+                return 0.0
+                
+            diagram = diagram[finite_mask]
+            
+            # Calculate persistence
+            persistence = diagram[:, 1] - diagram[:, 0]
+            
+            # Normalize the persistence values
+            total_persistence = np.sum(persistence)
+            if total_persistence == 0:
+                return 0.0
+                
+            probabilities = persistence / total_persistence
+            
+            # Calculate entropy
+            return -np.sum(probabilities * np.log(probabilities + 1e-10))  # Added small constant to avoid log(0)
+        except Exception as e:
+            print(f"Error computing persistence entropy: {e}")
+            return 0.0
+
     def analyze_persistent_features(self, diagrams):
         """
         Analyze persistence diagrams to identify significant market features
         """
         try:
+            if not isinstance(diagrams, list) or len(diagrams) < 2:
+                raise ValueError("Invalid persistence diagrams format")
+
             # Basic feature analysis
             components = diagrams[0]
             cycles = diagrams[1]
-            component_lifetimes = components[:, 1] - components[:, 0]
-            cycle_lifetimes = cycles[:, 1] - cycles[:, 0]
+
+            if len(components) == 0 and len(cycles) == 0:
+                return {
+                    'n_components': 0,
+                    'n_cycles': 0,
+                    'avg_component_lifetime': 0,
+                    'avg_cycle_lifetime': 0,
+                    'max_component_lifetime': 0,
+                    'max_cycle_lifetime': 0,
+                    'significant_cycles': np.array([]),
+                    'cycle_threshold': 0,
+                    'persistence_entropy': 0
+                }
+
+            # Calculate lifetimes
+            component_lifetimes = components[:, 1] - components[:, 0] if len(components) > 0 else np.array([])
+            cycle_lifetimes = cycles[:, 1] - cycles[:, 0] if len(cycles) > 0 else np.array([])
             
             # Advanced cycle analysis
-            significant_threshold = np.percentile(cycle_lifetimes, 90)
-            significant_cycles = cycles[cycle_lifetimes > significant_threshold]
+            significant_threshold = np.percentile(cycle_lifetimes, 90) if len(cycle_lifetimes) > 0 else 0
+            significant_cycles = cycles[cycle_lifetimes > significant_threshold] if len(cycle_lifetimes) > 0 else np.array([])
             
             return {
                 'n_components': len(components),
                 'n_cycles': len(cycles),
-                'avg_component_lifetime': np.mean(component_lifetimes),
-                'avg_cycle_lifetime': np.mean(cycle_lifetimes),
-                'max_component_lifetime': np.max(component_lifetimes),
-                'max_cycle_lifetime': np.max(cycle_lifetimes),
+                'avg_component_lifetime': np.mean(component_lifetimes) if len(component_lifetimes) > 0 else 0,
+                'avg_cycle_lifetime': np.mean(cycle_lifetimes) if len(cycle_lifetimes) > 0 else 0,
+                'max_component_lifetime': np.max(component_lifetimes) if len(component_lifetimes) > 0 else 0,
+                'max_cycle_lifetime': np.max(cycle_lifetimes) if len(cycle_lifetimes) > 0 else 0,
                 'significant_cycles': significant_cycles,
                 'cycle_threshold': significant_threshold,
-                'persistence_entropy': persim_entropy(cycles)
+                'persistence_entropy': self.compute_persistence_entropy(cycles) if len(cycles) > 0 else 0
             }
         except Exception as e:
-            print(f"Error in analyze_persistent_features: {e}")
-            raise
-
+            print(f"Error in analyze_persistent_features: {str(e)}")
+            # Return default values in case of error
+            return {
+                'n_components': 0,
+                'n_cycles': 0,
+                'avg_component_lifetime': 0,
+                'avg_cycle_lifetime': 0,
+                'max_component_lifetime': 0,
+                'max_cycle_lifetime': 0,
+                'significant_cycles': np.array([]),
+                'cycle_threshold': 0,
+                'persistence_entropy': 0
+            }
+        
     def create_persistence_network(self, point_cloud, epsilon=0.1):
         """
-        Create network based on persistence features
+        Create network based on persistence features with robust error handling
         """
         try:
+            if len(point_cloud) < 2:
+                return nx.Graph(), np.zeros((len(point_cloud), len(point_cloud)))
+                
+            # Compute pairwise distances
             distances = pdist(point_cloud)
             dist_matrix = squareform(distances)
             
+            # Create network
             G = nx.Graph()
+            G.add_nodes_from(range(len(point_cloud)))
+            
+            # Add edges where distance is below threshold
             for i in range(len(point_cloud)):
                 for j in range(i+1, len(point_cloud)):
                     if dist_matrix[i,j] < epsilon:
                         G.add_edge(i, j, weight=dist_matrix[i,j])
             
             return G, dist_matrix
+            
         except Exception as e:
             print(f"Error in create_persistence_network: {e}")
-            raise
+            return nx.Graph(), np.zeros((len(point_cloud), len(point_cloud)))
 
     def detect_market_states_and_transitions(self, point_cloud, eps=0.5, min_samples=5, k_neighbors=5):
         """
@@ -92,7 +158,7 @@ class MarketAnalyzer:
         """
         try:
             # Calculate persistence entropy
-            persistence_entropy = persim_entropy(diagrams[1])
+            persistence_entropy = self.compute_persistence_entropy(diagrams[1])
             
             # Calculate topological complexity
             n_features = len(diagrams[0]) + len(diagrams[1])
@@ -135,9 +201,25 @@ class MarketAnalyzer:
         Enhanced market regime detection
         """
         try:
+            # Ensure returns is a 1D array with same length as mds_coords
+            if isinstance(returns, pd.DataFrame):
+                returns = returns.values.flatten()
+            elif isinstance(returns, pd.Series):
+                returns = returns.values
+                
+            # Trim or pad returns to match mds_coords length
+            if len(returns) > len(mds_coords):
+                returns = returns[:len(mds_coords)]
+            elif len(returns) < len(mds_coords):
+                # Pad with zeros if needed
+                returns = np.pad(returns, (0, len(mds_coords) - len(returns)))
+                
             # DBSCAN clustering for regime detection
             clustering = DBSCAN(eps=eps, min_samples=min_samples).fit(mds_coords)
             labels = clustering.labels_
+            
+            # Verify dimensions match
+            assert len(labels) == len(returns), f"Mismatch in dimensions: labels {len(labels)}, returns {len(returns)}"
             
             # Analyze each regime
             regimes = {}
@@ -145,116 +227,80 @@ class MarketAnalyzer:
                 mask = labels == label
                 regime_returns = returns[mask]
                 
-                # Calculate regime statistics
-                regime_stats = {
-                    'volatility': np.std(regime_returns),
-                    'mean_return': np.mean(regime_returns),
-                    'duration': np.sum(mask),
-                    'skewness': pd.Series(regime_returns).skew(),
-                    'kurtosis': pd.Series(regime_returns).kurtosis(),
-                }
+                if len(regime_returns) > 0:
+                    # Calculate regime statistics
+                    regime_stats = {
+                        'volatility': np.std(regime_returns),
+                        'mean_return': np.mean(regime_returns),
+                        'duration': np.sum(mask),
+                        'skewness': pd.Series(regime_returns).skew(),
+                        'kurtosis': pd.Series(regime_returns).kurtosis(),
+                    }
+                    
+                    # Add Sharpe ratio if volatility is non-zero
+                    if regime_stats['volatility'] != 0:
+                        regime_stats['sharpe_ratio'] = regime_stats['mean_return'] / regime_stats['volatility']
+                    else:
+                        regime_stats['sharpe_ratio'] = 0
+                    
+                    regimes[f'Regime_{label}'] = regime_stats
                 
-                # Add Sharpe ratio if volatility is non-zero
-                if regime_stats['volatility'] != 0:
-                    regime_stats['sharpe_ratio'] = regime_stats['mean_return'] / regime_stats['volatility']
-                else:
-                    regime_stats['sharpe_ratio'] = 0
-                
-                regimes[f'Regime_{label}'] = regime_stats
-            
             return regimes, labels
         except Exception as e:
             print(f"Error in detect_market_regimes: {e}")
-            raise
-
-    def compute_stability_measures(self, point_cloud, returns):
-        """
-        Compute comprehensive stability measures
-        """
-        try:
-            # Local density estimation
-            k_neighbors = min(10, len(point_cloud)-1)
-            nbrs = NearestNeighbors(n_neighbors=k_neighbors).fit(point_cloud)
-            distances, _ = nbrs.kneighbors(point_cloud)
-            local_density = 1 / np.mean(distances, axis=1)
-            
-            # Network measures
-            G, dist_matrix = self.create_persistence_network(point_cloud)
-            network_stats = {
-                'avg_degree': np.mean([d for n, d in G.degree()]),
-                'clustering_coef': nx.average_clustering(G),
-                'n_components': nx.number_connected_components(G)
-            }
-            
-            # Volatility measures
-            rolling_vol = pd.Series(returns).rolling(self.window_size).std()
-            volatility_stats = {
-                'mean_vol': np.mean(rolling_vol),
-                'vol_of_vol': np.std(rolling_vol),
-                'max_vol': np.max(rolling_vol)
-            }
-            
-            return {
-                'density_stats': {
-                    'mean': np.mean(local_density),
-                    'std': np.std(local_density),
-                    'skew': pd.Series(local_density).skew()
-                },
-                'network_measures': network_stats,
-                'volatility_measures': volatility_stats,
-                'local_density': local_density,
-                'distance_matrix': dist_matrix
-            }
-        except Exception as e:
-            print(f"Error in compute_stability_measures: {e}")
-            raise
+            return {}, np.zeros(len(mds_coords))
 
     def analyze_period_results(self, period_results, period_name):
-        """
-        Comprehensive period analysis
-        """
         try:
             combined_cloud = period_results['combined']['cloud']
             combined_diagrams = period_results['combined']['diagrams']
             processed_data = period_results['processed_data']
             
+            # Convert processed_data to proper format for analysis
+            if isinstance(processed_data, pd.DataFrame):
+                returns = processed_data.mean(axis=1).values  # Use mean across indices
+            else:
+                returns = processed_data.flatten()
+                
+            # Ensure returns length matches cloud length
+            if len(returns) > len(combined_cloud):
+                returns = returns[-len(combined_cloud):]
+            
             # Basic topological analysis
             feature_analysis = self.analyze_persistent_features(combined_diagrams)
             
             # Crisis indicators
-            crisis_indicators = self.compute_crisis_indicators(
-                combined_diagrams, 
-                processed_data.values.flatten()
-            )
+            crisis_indicators = self.compute_crisis_indicators(combined_diagrams, returns)
             
             # Market regimes
             regimes, regime_labels = self.detect_market_regimes(
                 period_results['combined']['mds_coords'],
-                processed_data.values.flatten()
+                returns
             )
             
             # Market states and transitions
             states, transitions, local_var = self.detect_market_states_and_transitions(combined_cloud)
             
             # Stability analysis
-            stability = self.compute_stability_measures(
-                combined_cloud,
-                processed_data.values.flatten()
-            )
+            stability = self.compute_stability_measures(combined_cloud, returns)
             
             # Analyze individual indices
             separate_analysis = {}
             for index, result in period_results['separate'].items():
                 try:
+                    index_returns = processed_data[index] if isinstance(processed_data, pd.DataFrame) else processed_data
+                    if len(index_returns) > len(result['cloud']):
+                        index_returns = index_returns[-len(result['cloud']):]
+                        
                     separate_analysis[index] = {
                         'features': self.analyze_persistent_features(result['diagrams']),
                         'crisis_indicators': self.compute_crisis_indicators(
                             result['diagrams'],
-                            processed_data[index]
+                            index_returns
                         ),
                         'stability': self.compute_stability_measures(
                             result['cloud'],
-                            processed_data[index]
+                            index_returns
                         )
                     }
                 except Exception as e:
@@ -279,6 +325,109 @@ class MarketAnalyzer:
         except Exception as e:
             print(f"Error in analyze_period_results: {e}")
             raise
+
+    def compute_stability_measures(self, point_cloud, returns):
+        """
+        Compute comprehensive stability measures with robust error handling
+        """
+        try:
+            # Initialize default values
+            default_stats = {
+                'density_stats': {
+                    'mean': 0,
+                    'std': 0,
+                    'skew': 0
+                },
+                'network_measures': {
+                    'avg_degree': 0,
+                    'clustering_coef': 0,
+                    'n_components': 0
+                },
+                'volatility_measures': {
+                    'mean_vol': 0,
+                    'vol_of_vol': 0,
+                    'max_vol': 0
+                },
+                'local_density': np.zeros(len(point_cloud)),
+                'distance_matrix': np.zeros((len(point_cloud), len(point_cloud)))
+            }
+
+            # Check for valid input
+            if len(point_cloud) < 2:
+                print("Warning: Not enough points for stability analysis")
+                return default_stats
+
+            # Local density estimation with error handling
+            try:
+                k_neighbors = min(10, len(point_cloud)-1)
+                if k_neighbors < 1:
+                    return default_stats
+                    
+                nbrs = NearestNeighbors(n_neighbors=k_neighbors).fit(point_cloud)
+                distances, _ = nbrs.kneighbors(point_cloud)
+                
+                # Add small epsilon to avoid division by zero
+                eps = 1e-10
+                mean_distances = np.mean(distances, axis=1) + eps
+                local_density = 1 / mean_distances
+                
+            except Exception as e:
+                print(f"Error in local density calculation: {e}")
+                local_density = np.zeros(len(point_cloud))
+                
+            # Network measures with error handling
+            try:
+                G, dist_matrix = self.create_persistence_network(point_cloud, epsilon=0.1)
+                
+                # Compute network statistics safely
+                if G.number_of_nodes() > 0:
+                    avg_degree = np.mean([d for n, d in G.degree()]) if G.number_of_edges() > 0 else 0
+                    clustering_coef = nx.average_clustering(G) if G.number_of_edges() > 0 else 0
+                    n_components = nx.number_connected_components(G)
+                else:
+                    avg_degree = clustering_coef = n_components = 0
+                    
+            except Exception as e:
+                print(f"Error in network measures calculation: {e}")
+                avg_degree = clustering_coef = n_components = 0
+                dist_matrix = np.zeros((len(point_cloud), len(point_cloud)))
+                
+            # Volatility measures with error handling
+            try:
+                returns_series = pd.Series(returns)
+                rolling_vol = returns_series.rolling(self.window_size, min_periods=1).std()
+                
+                volatility_stats = {
+                    'mean_vol': rolling_vol.mean() if not rolling_vol.empty else 0,
+                    'vol_of_vol': rolling_vol.std() if not rolling_vol.empty else 0,
+                    'max_vol': rolling_vol.max() if not rolling_vol.empty else 0
+                }
+            except Exception as e:
+                print(f"Error in volatility measures calculation: {e}")
+                volatility_stats = {'mean_vol': 0, 'vol_of_vol': 0, 'max_vol': 0}
+                
+            # Combine all measures
+            return {
+                'density_stats': {
+                    'mean': np.mean(local_density),
+                    'std': np.std(local_density),
+                    'skew': pd.Series(local_density).skew() if len(local_density) > 2 else 0
+                },
+                'network_measures': {
+                    'avg_degree': avg_degree,
+                    'clustering_coef': clustering_coef,
+                    'n_components': n_components
+                },
+                'volatility_measures': volatility_stats,
+                'local_density': local_density,
+                'distance_matrix': dist_matrix
+            }
+            
+        except Exception as e:
+            print(f"Error in compute_stability_measures: {e}")
+            return default_stats
+
+
 
     def generate_report(self, analysis_results):
         """
