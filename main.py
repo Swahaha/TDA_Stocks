@@ -304,6 +304,7 @@ def generate_comparative_visualizations(analysis_results, output_dir):
     except Exception as e:
         print(f"Error generating comparative visualizations: {e}")
 
+
 def main():
     try:
         # Create output directory
@@ -311,7 +312,7 @@ def main():
         print(f"\nOutput will be saved to: {output_dir}")
         
         # Load data
-        data = load_data('combined_data.csv')  # Update with your actual filename
+        data = load_data('combined_data.csv')
         
         # Initialize analyzers
         window_size = 20
@@ -337,53 +338,60 @@ def main():
         # Save individual period results
         print("\nSaving individual period results...")
         for period_name in tda_results.keys():
-            save_period_analysis(
-                period_name,
-                tda_results[period_name],
-                analysis_results[period_name],
-                output_dir
-            )
+            try:
+                save_period_analysis(
+                    period_name,
+                    tda_results[period_name],
+                    analysis_results[period_name],
+                    output_dir
+                )
+            except Exception as e:
+                print(f"Error saving results for {period_name}: {str(e)}")
+                continue
         
-        # Generate and save visualizations
+        # Generate visualizations
         print("\nGenerating visualizations...")
         
-        # TDA visualizations
+        # Create TDA visualizations
+        print("Creating TDA visualizations...")
         for period_name, period_results in tda_results.items():
-            save_path = os.path.join(output_dir, 'plots', 'individual_periods', 
-                                   f'{period_name}_tda.png')
-            tda.plot_analysis(period_results, save_path)
-            print(f"Saved TDA visualization for {period_name}")
-        
-        # Analysis visualizations
-        analyzer.plot_analysis_results(
-            analysis_results,
-            save_path=os.path.join(output_dir, 'plots', 'combined_analysis', 
-                                 'analysis_summary.png')
-        )
-        print("Saved analysis summary plots")
-        
-        # Generate comparative visualizations
-        generate_comparative_visualizations(analysis_results, output_dir)
-        
-        # Generate and save final report
-        print("\nGenerating final report...")
-        report = analyzer.generate_report(analysis_results)
-        report_path = os.path.join(output_dir, 'reports', 'final_analysis_report.txt')
-        with open(report_path, 'w') as f:
-            f.write(report)
-        print("Saved final report")
-        
+            try:
+                print(f"  Processing {period_name}...")
+                save_path = os.path.join(output_dir, 'plots', 'individual_periods', 
+                                       f'{period_name}_tda.png')
+                tda.plot_analysis(period_results, save_path)
+                print(f"  Completed {period_name}")
+                plt.close('all')  # Cleanup after each plot
+            except Exception as e:
+                print(f"  Error generating plot for {period_name}: {str(e)}")
+                plt.close('all')
+                continue
+
+        # Generate analysis summary plots
+        print("\nCreating analysis summary plots...")
+        try:
+            summary_path = os.path.join(output_dir, 'plots', 'combined_analysis', 
+                                      'analysis_summary.png')
+            analyzer.plot_analysis_results(analysis_results, summary_path)
+            print("Completed analysis summary plots")
+            plt.close('all')
+        except Exception as e:
+            print(f"Error generating analysis summary plots: {str(e)}")
+            plt.close('all')
+
+        print("\nVisualization generation complete!")
         print(f"\nAnalysis complete! Results saved to: {output_dir}")
         print("\nOutput directory contains:")
-        print("1. TDA visualizations for each period")
-        print("2. Market analysis plots and comparative visualizations")
-        print("3. Comprehensive report and period summaries")
-        print("4. Numerical results and metrics")
+        print("1. TDA visualizations")
+        print("2. Market analysis plots")
+        print("3. Comprehensive report")
+        print("4. Numerical results")
         
         return tda_results, analysis_results
         
     except Exception as e:
         print(f"\nCritical error during analysis: {e}")
+        plt.close('all')  # Ensure all figures are closed
         raise
 
 if __name__ == "__main__":

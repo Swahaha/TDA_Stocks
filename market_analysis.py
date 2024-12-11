@@ -485,10 +485,13 @@ class MarketAnalyzer:
             raise
 
     def plot_analysis_results(self, analysis_results, save_path=None):
+        """Plot analysis results with proper figure management"""
         try:
+            print("  Creating main comparison plot...")
             fig = plt.figure(figsize=(20, 15))
             
             periods = list(analysis_results.keys())
+            print(f"  Processing {len(periods)} periods...")
             
             # Plot 1: Crisis Indicators
             plt.subplot(321)
@@ -501,6 +504,7 @@ class MarketAnalyzer:
             plt.xticks(rotation=45)
             
             # Plot 2: Market Regimes
+            print("  Creating regime plot...")
             plt.subplot(322)
             for period in periods:
                 regimes = analysis_results[period]['combined']['regimes']
@@ -511,6 +515,7 @@ class MarketAnalyzer:
             plt.xticks(rotation=45)
             
             # Plot 3: Stability Measures
+            print("  Creating stability plot...")
             plt.subplot(323)
             stabilities = [res['combined']['stability'] for res in analysis_results.values()]
             plt.plot(periods, [s['density_stats']['mean'] for s in stabilities], 'o-')
@@ -546,46 +551,44 @@ class MarketAnalyzer:
             plt.title('Network Measures')
             plt.xticks(rotation=45)
             
-            # Add a main title
             plt.suptitle('Market Analysis Results', fontsize=16, y=1.02)
-            
-            # Adjust layout
             plt.tight_layout()
             
-            # Save if path provided
+            # Save main plot
+            print("  Saving main analysis plot...")
             if save_path:
                 plt.savefig(save_path, bbox_inches='tight', dpi=300)
+            plt.close(fig)
             
-            plt.show()
-            
-            # Create additional plots for deeper analysis
-            # Plot 7: Crisis Indicators Heatmap
-            plt.figure(figsize=(12, 8))
+            # Create and save heatmap
+            print("  Creating heatmap...")
+            fig_heatmap = plt.figure(figsize=(12, 8))
             crisis_data = pd.DataFrame([res['combined']['crisis_indicators'] 
                                     for res in analysis_results.values()],
                                     index=periods)
             sns.heatmap(crisis_data, annot=True, cmap='YlOrRd', fmt='.2f')
             plt.title('Crisis Indicators Heatmap')
             if save_path:
-                plt.savefig(save_path.replace('.png', '_heatmap.png'), 
-                        bbox_inches='tight', dpi=300)
-            plt.show()
+                heatmap_path = save_path.replace('.png', '_heatmap.png')
+                plt.savefig(heatmap_path, bbox_inches='tight', dpi=300)
+            plt.close(fig_heatmap)
             
-            # Plot 8: Regime Transitions
-            plt.figure(figsize=(12, 6))
+            # Create and save regime transitions
+            print("  Creating regime transitions plot...")
+            fig_regime = plt.figure(figsize=(12, 6))
             for i, period in enumerate(periods):
                 regime_labels = analysis_results[period]['combined']['regime_labels']
-                plt.scatter([i]*len(regime_labels), regime_labels, 
-                        alpha=0.5, label=period)
+                plt.scatter([i]*len(regime_labels), regime_labels, alpha=0.5, label=period)
             plt.xticks(range(len(periods)), periods, rotation=45)
             plt.title('Regime Transitions Across Periods')
             if save_path:
-                plt.savefig(save_path.replace('.png', '_regimes.png'), 
-                        bbox_inches='tight', dpi=300)
-            plt.show()
+                regime_path = save_path.replace('.png', '_regimes.png')
+                plt.savefig(regime_path, bbox_inches='tight', dpi=300)
+            plt.close(fig_regime)
             
-            # Plot 9: Stability Comparison
-            plt.figure(figsize=(12, 6))
+            # Create and save stability comparison
+            print("  Creating stability comparison plot...")
+            fig_stability = plt.figure(figsize=(12, 6))
             stability_metrics = pd.DataFrame(
                 {period: res['combined']['stability']['volatility_measures'] 
                 for period, res in analysis_results.items()}
@@ -594,11 +597,13 @@ class MarketAnalyzer:
             plt.title('Stability Metrics Comparison')
             plt.xticks(rotation=45)
             if save_path:
-                plt.savefig(save_path.replace('.png', '_stability.png'), 
-                        bbox_inches='tight', dpi=300)
-            plt.show()
+                stability_path = save_path.replace('.png', '_stability.png')
+                plt.savefig(stability_path, bbox_inches='tight', dpi=300)
+            plt.close(fig_stability)
+            
+            print("  All analysis plots completed and saved")
             
         except Exception as e:
             print(f"Error in plot_analysis_results: {e}")
-            plt.close('all')  # Clean up any open figures
+            plt.close('all')  # Clean up on error
             raise

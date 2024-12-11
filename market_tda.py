@@ -127,31 +127,39 @@ class MarketTDA:
     
     def plot_analysis(self, results, save_path=None):
         """
-        Create visualization comparing both approaches.
+        Create visualization comparing both approaches with proper figure management
         """
-        fig = plt.figure(figsize=(20, 15))
-        
-        # Plot combined approach results
-        plt.subplot(231)
-        plot_diagrams(results['combined']['diagrams'], show=False)
-        plt.title('Persistence Diagrams (Combined Approach)')
-        
-        plt.subplot(232)
-        plt.scatter(
-            results['combined']['mds_coords'][:, 0],
-            results['combined']['mds_coords'][:, 1],
-            alpha=0.6
-        )
-        plt.title('MDS Embedding (Combined Approach)')
-        
-        # Plot separate approach results
-        for i, (index, result) in enumerate(results['separate'].items()):
-            # Persistence diagrams
-            plt.subplot(234 + i)
-            plot_diagrams(result['diagrams'], show=False)
-            plt.title(f'Persistence Diagrams ({index})')
+        try:
+            # Create new figure
+            fig = plt.figure(figsize=(20, 15))
             
-        plt.tight_layout()
-        if save_path:
-            plt.savefig(save_path)
-        plt.show()
+            # Plot combined approach results
+            plt.subplot(231)
+            plot_diagrams(results['combined']['diagrams'], show=False)
+            plt.title('Persistence Diagrams (Combined Approach)')
+            
+            plt.subplot(232)
+            plt.scatter(
+                results['combined']['mds_coords'][:, 0],
+                results['combined']['mds_coords'][:, 1],
+                alpha=0.6
+            )
+            plt.title('MDS Embedding (Combined Approach)')
+            
+            # Plot separate approach results
+            for i, (index, result) in enumerate(results['separate'].items()):
+                # Persistence diagrams
+                plt.subplot(234 + i)
+                plot_diagrams(result['diagrams'], show=False)
+                plt.title(f'Persistence Diagrams ({index})')
+                
+            plt.tight_layout()
+            if save_path:
+                plt.savefig(save_path, bbox_inches='tight', dpi=300)
+                print(f"Saved plot to {save_path}")
+            
+            plt.close(fig)  # Close the figure explicitly
+            
+        except Exception as e:
+            print(f"Error in plot_analysis: {str(e)}")
+            plt.close('all')  # Ensure cleanup on error
