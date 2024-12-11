@@ -1,0 +1,19 @@
+Analysis Summary for Covid_Crisis
+==================================================
+
+Crisis Indicators:
+- persistence_entropy: 3.669
+- topological_complexity: 14.350
+- feature_stability: inf
+- volatility: 1.003
+- volatility_of_volatility: 0.613
+- max_drawdown: 3.727
+- avg_feature_lifetime: inf
+- max_feature_lifetime: inf
+
+Market Regimes:
+- Number of Regimes: 3
+
+Stability Measures:
+- Mean Local Density: 0.216
+- Network Clustering: 0.000

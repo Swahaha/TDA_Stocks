@@ -13,6 +13,49 @@ from scipy.spatial.distance import pdist, squareform
 class MarketAnalyzer:
     def __init__(self, window_size=20):
         self.window_size = window_size
+    
+    def generate_period_summary(self, period_name, analysis):
+        """Generate summary text for a period with error handling"""
+        try:
+            summary = [
+                f"Analysis Summary for {period_name}",
+                "=" * 50,
+                "",
+                "Crisis Indicators:"
+            ]
+            
+            # Add crisis indicators with safe access
+            crisis = analysis.get('crisis_indicators', {})
+            for key, value in crisis.items():
+                if isinstance(value, (int, float)):
+                    summary.append(f"- {key}: {value:.3f}")
+                elif isinstance(value, np.ndarray):
+                    summary.append(f"- {key}: {value.item():.3f}" if value.size == 1 
+                                else f"- {key}: {value.tolist()}")
+            
+            summary.extend([
+                "",
+                "Market Regimes:",
+                f"- Number of Regimes: {len(analysis.get('regimes', {}))}"
+            ])
+            
+            # Add stability measures with safe access
+            stability = analysis.get('stability', {})
+            density_stats = stability.get('density_stats', {})
+            network_measures = stability.get('network_measures', {})
+            
+            summary.extend([
+                "",
+                "Stability Measures:",
+                f"- Mean Local Density: {density_stats.get('mean', 0):.3f}",
+                f"- Network Clustering: {network_measures.get('clustering_coef', 0):.3f}"
+            ])
+            
+            return "\n".join(summary)
+            
+        except Exception as e:
+            print(f"Error generating period summary: {e}")
+            return f"Error generating summary for {period_name}: {str(e)}"
 
     def compute_persistence_entropy(self, diagram):
         """

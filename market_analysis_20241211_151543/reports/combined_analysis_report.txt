@@ -1,0 +1,112 @@
+COMPREHENSIVE MARKET ANALYSIS REPORT
+========================================
+
+Analysis Summary for Full_Period
+==================================================
+
+Crisis Indicators:
+- persistence_entropy: 5.907
+- topological_complexity: 87.050
+- feature_stability: inf
+- volatility: 0.964
+- volatility_of_volatility: 0.506
+- max_drawdown: 3.624
+- avg_feature_lifetime: inf
+- max_feature_lifetime: inf
+
+Market Regimes:
+- Number of Regimes: 28
+
+Stability Measures:
+- Mean Local Density: 0.203
+- Network Clustering: 0.000
+
+================================================================================
+
+Analysis Summary for Covid_Crisis
+==================================================
+
+Crisis Indicators:
+- persistence_entropy: 3.669
+- topological_complexity: 14.350
+- feature_stability: inf
+- volatility: 1.003
+- volatility_of_volatility: 0.613
+- max_drawdown: 3.727
+- avg_feature_lifetime: inf
+- max_feature_lifetime: inf
+
+Market Regimes:
+- Number of Regimes: 3
+
+Stability Measures:
+- Mean Local Density: 0.216
+- Network Clustering: 0.000
+
+================================================================================
+
+Analysis Summary for Recent_Period
+==================================================
+
+Crisis Indicators:
+- persistence_entropy: 6.447
+- topological_complexity: 91.150
+- feature_stability: inf
+- volatility: 0.951
+- volatility_of_volatility: 0.337
+- max_drawdown: 3.260
+- avg_feature_lifetime: inf
+- max_feature_lifetime: inf
+
+Market Regimes:
+- Number of Regimes: 21
+
+Stability Measures:
+- Mean Local Density: 0.169
+- Network Clustering: 0.000
+
+================================================================================
+
+Analysis Summary for Pre_Covid
+==================================================
+
+Crisis Indicators:
+- persistence_entropy: -0.000
+- topological_complexity: 0.300
+- feature_stability: inf
+- volatility: 0.695
+- volatility_of_volatility: nan
+- max_drawdown: 3.297
+- avg_feature_lifetime: inf
+- max_feature_lifetime: inf
+
+Market Regimes:
+- Number of Regimes: 1
+
+Stability Measures:
+- Mean Local Density: 0.123
+- Network Clustering: 0.000
+
+================================================================================
+
+Analysis Summary for Post_Covid
+==================================================
+
+Crisis Indicators:
+- persistence_entropy: 4.746
+- topological_complexity: 19.300
+- feature_stability: inf
+- volatility: 0.912
+- volatility_of_volatility: 0.278
+- max_drawdown: 3.423
+- avg_feature_lifetime: inf
+- max_feature_lifetime: inf
+
+Market Regimes:
+- Number of Regimes: 1
+
+Stability Measures:
+- Mean Local Density: 0.151
+- Network Clustering: 0.000
+
+================================================================================

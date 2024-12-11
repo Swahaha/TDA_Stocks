@@ -1,0 +1,6 @@
+,combined,separate
+components,1238.0,
+cycles,503.0,
+SP500,,"{'components': 1238, 'cycles': 940}"
+Russell,,"{'components': 1238, 'cycles': 905}"
+NASDAQ,,"{'components': 1238, 'cycles': 880}"
