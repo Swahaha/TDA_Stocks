@@ -6,6 +6,7 @@ import os
 from datetime import datetime
 import matplotlib.pyplot as plt
 import seaborn as sns
+import traceback
 
 def load_data(file_path):
     """Load and preprocess market data"""
@@ -95,82 +96,118 @@ def analyze_market_periods(data, tda, analyzer, periods):
             
     return tda_results, analysis_results
 
+def debug_data_structure(data, prefix=""):
+    """Helper function to inspect nested data structures"""
+    if isinstance(data, dict):
+        for key, value in data.items():
+            print(f"{prefix}{key}: {type(value)}")
+            if isinstance(value, (dict, list, np.ndarray)):
+                debug_data_structure(value, prefix + "  ")
+    elif isinstance(data, list):
+        print(f"{prefix}List of length {len(data)}")
+        if data:
+            print(f"{prefix}First element type: {type(data[0])}")
+    elif isinstance(data, np.ndarray):
+        print(f"{prefix}Array shape: {data.shape}, dtype: {data.dtype}")
+
 def save_period_analysis(period_name, tda_result, analysis_result, output_dir):
-    """Save analysis results for a specific period with proper data structure handling"""
-    # Create period directory
+    """Save analysis results for a specific period"""
     period_dir = os.path.join(output_dir, 'analysis', period_name)
     os.makedirs(period_dir, exist_ok=True)
     
     try:
-        # Save TDA results
+        # Save TDA results - cloud
         np.save(
             os.path.join(period_dir, 'combined_cloud.npy'),
             tda_result['combined']['cloud']
         )
-        np.save(
-            os.path.join(period_dir, 'persistence_diagrams.npy'),
-            tda_result['combined']['diagrams']
-        )
+        
+        # Save persistence diagrams separately for each dimension
+        diagrams_dir = os.path.join(period_dir, 'persistence_diagrams')
+        os.makedirs(diagrams_dir, exist_ok=True)
+        for dim, diagram in enumerate(tda_result['combined']['diagrams']):
+            np.save(
+                os.path.join(diagrams_dir, f'dim_{dim}.npy'),
+                diagram
+            )
+        
         print(f"Saved TDA results for {period_name}")
         
-        # Save analysis results
-        combined_analysis = analysis_result['combined']
-        
-        # Save crisis indicators as flattened dict
+        # Save crisis indicators
         crisis_dict = {}
-        for key, value in combined_analysis['crisis_indicators'].items():
-            if isinstance(value, (int, float, str)):
+        for key, value in analysis_result['combined']['crisis_indicators'].items():
+            if isinstance(value, (np.floating, np.integer)):
+                crisis_dict[key] = float(value)
+            elif isinstance(value, (float, int)):
                 crisis_dict[key] = value
-            elif isinstance(value, np.ndarray):
-                crisis_dict[key] = value.item() if value.size == 1 else value.tolist()
+                
         pd.DataFrame([crisis_dict]).to_csv(
             os.path.join(period_dir, 'crisis_indicators.csv')
         )
         
         # Save regime analysis
         regime_data = []
-        for regime_id, regime_info in combined_analysis['regimes'].items():
+        for regime_id, regime_info in analysis_result['combined']['regimes'].items():
             regime_dict = {'regime_id': regime_id}
-            regime_dict.update({k: v for k, v in regime_info.items() 
-                              if isinstance(v, (int, float, str))})
+            for k, v in regime_info.items():
+                if isinstance(v, (np.floating, np.integer)):
+                    regime_dict[k] = float(v)
+                elif isinstance(v, (float, int)):
+                    regime_dict[k] = v
             regime_data.append(regime_dict)
-        
+            
         pd.DataFrame(regime_data).to_csv(
-            os.path.join(period_dir, 'regime_analysis.csv'), index=False
+            os.path.join(period_dir, 'regime_analysis.csv'),
+            index=False
         )
         
         # Save stability measures
-        stability_data = {
-            'density_stats': combined_analysis['stability']['density_stats'],
-            'network_measures': combined_analysis['stability']['network_measures'],
-            'volatility_measures': combined_analysis['stability']['volatility_measures']
-        }
+        stability = analysis_result['combined']['stability']
+        stability_dict = {}
         
-        # Flatten nested dictionaries
-        flat_stability = {}
-        for category, metrics in stability_data.items():
-            for metric, value in metrics.items():
-                if isinstance(value, (int, float)):
-                    flat_stability[f"{category}_{metric}"] = value
-                elif isinstance(value, np.ndarray):
-                    flat_stability[f"{category}_{metric}"] = value.item() if value.size == 1 else value.tolist()
-        
-        pd.DataFrame([flat_stability]).to_csv(
+        # Density stats
+        for k, v in stability['density_stats'].items():
+            stability_dict[f'density_{k}'] = float(v) if isinstance(v, (np.floating, np.integer)) else v
+            
+        # Network measures
+        for k, v in stability['network_measures'].items():
+            stability_dict[f'network_{k}'] = float(v) if isinstance(v, (np.floating, np.integer)) else v
+            
+        # Volatility measures
+        for k, v in stability['volatility_measures'].items():
+            stability_dict[f'volatility_{k}'] = float(v) if isinstance(v, (np.floating, np.integer)) else v
+            
+        pd.DataFrame([stability_dict]).to_csv(
             os.path.join(period_dir, 'stability_measures.csv')
         )
         
-        print(f"Saved analysis results for {period_name}")
+        # Save arrays separately
+        arrays_dir = os.path.join(period_dir, 'arrays')
+        os.makedirs(arrays_dir, exist_ok=True)
+        
+        np.save(os.path.join(arrays_dir, 'regime_labels.npy'), 
+                analysis_result['combined']['regime_labels'])
+        np.save(os.path.join(arrays_dir, 'states.npy'), 
+                analysis_result['combined']['states'])
+        np.save(os.path.join(arrays_dir, 'transitions.npy'), 
+                analysis_result['combined']['transitions'])
+        np.save(os.path.join(arrays_dir, 'local_variance.npy'), 
+                analysis_result['combined']['local_variance'])
+        np.save(os.path.join(arrays_dir, 'local_density.npy'), 
+                analysis_result['combined']['stability']['local_density'])
+        np.save(os.path.join(arrays_dir, 'distance_matrix.npy'), 
+                analysis_result['combined']['stability']['distance_matrix'])
         
         # Save period summary
-        summary = generate_period_summary(period_name, combined_analysis)
-        with open(os.path.join(period_dir, 'period_summary.txt'), 'w') as f:
+        summary = generate_period_summary(period_name, analysis_result['combined'])
+        with open(os.path.join(period_dir, 'summary.txt'), 'w') as f:
             f.write(summary)
-            
-        print(f"Saved period summary for {period_name}")
+        
+        print(f"Successfully saved all results for {period_name}")
         
     except Exception as e:
-        print(f"Error saving results for {period_name}: {e}")
-        print("Detailed error info:", str(e))
+        print(f"Error saving results for {period_name}: {str(e)}")
+        traceback.print_exc()
 
 def generate_period_summary(period_name, analysis):
     """Generate summary text for a period with error handling"""
@@ -285,7 +322,6 @@ def main():
         # Define analysis periods
         periods = {
             'Full_Period': (data.index.min(), data.index.max()),
-            'Financial_Crisis': ('2008-01-01', '2009-12-31'),
             'Covid_Crisis': ('2020-01-01', '2020-12-31'),
             'Recent_Period': ('2021-01-01', data.index.max()),
             'Pre_Covid': ('2019-01-01', '2019-12-31'),
