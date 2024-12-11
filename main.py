@@ -1,89 +1,189 @@
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-from market_tda import MarketTDA  # assuming above code is saved as market_tda.py
+from market_tda import MarketTDA
+from market_analysis import MarketAnalyzer
+import os
+from datetime import datetime
 
-def load_data():
-    """
-    Load market data from CSV files
-    """
+def load_data(file_path):
+    """Load and preprocess market data"""
     try:
-        # Update these paths to match your CSV file locations
-        sp500 = pd.read_csv('sp500.csv')  # adjust path as needed
-        russell = pd.read_csv('russell.csv')  # adjust path as needed
-        nasdaq = pd.read_csv('nasdaq.csv')  # adjust path as needed
+        print(f"Loading data from {file_path}")
+        data = pd.read_csv(file_path)
+        data['Date'] = pd.to_datetime(data['Date'])
+        data.set_index('Date', inplace=True)
         
-        # Convert dates to datetime
-        for df in [sp500, russell, nasdaq]:
-            df['Date'] = pd.to_datetime(df['Date'])
+        required_columns = ['SP500', 'Russell', 'NASDAQ']
+        if not all(col in data.columns for col in required_columns):
+            raise ValueError(f"Data must contain columns: {required_columns}")
         
-        print("Data loaded successfully!")
-        print(f"Date range: {sp500['Date'].min()} to {sp500['Date'].max()}")
+        print(f"Data loaded successfully!")
+        print(f"Date range: {data.index.min()} to {data.index.max()}")
+        print(f"Number of trading days: {len(data)}")
         
-        return sp500, russell, nasdaq
+        return data[required_columns]
     
     except Exception as e:
         print(f"Error loading data: {e}")
         raise
 
+def create_output_directory():
+    """Create timestamped output directory"""
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    base_dir = f"market_analysis_{timestamp}"
+    
+    # Create subdirectories
+    subdirs = ['tda', 'analysis', 'plots', 'reports']
+    for subdir in subdirs:
+        os.makedirs(os.path.join(base_dir, subdir), exist_ok=True)
+    
+    return base_dir
+
+def analyze_market_periods(data, tda, analyzer, periods):
+    """Analyze specific market periods"""
+    tda_results = {}
+    analysis_results = {}
+    
+    for name, (start, end) in periods.items():
+        try:
+            print(f"\n{'='*50}")
+            print(f"Analyzing {name} period ({start} to {end})")
+            period_data = data[start:end]
+            
+            if len(period_data) < tda.window_size:
+                print(f"Warning: Period too short for window size {tda.window_size}")
+                continue
+                
+            # Perform TDA analysis
+            print("\nPerforming TDA analysis...")
+            tda_results[name] = tda.analyze_market_structure(period_data)
+            
+            # Perform market analysis
+            print("\nPerforming advanced market analysis...")
+            analysis_results[name] = analyzer.analyze_period_results(
+                tda_results[name], name
+            )
+            
+            print(f"Analysis complete for {name}")
+            
+        except Exception as e:
+            print(f"Error analyzing {name}: {e}")
+            continue
+            
+    return tda_results, analysis_results
+
+def save_results(tda_results, analysis_results, output_dir):
+    """Save analysis results"""
+    for period_name in tda_results.keys():
+        # Create period directory
+        period_dir = os.path.join(output_dir, 'analysis', period_name)
+        os.makedirs(period_dir, exist_ok=True)
+        
+        try:
+            # Save TDA results
+            np.save(
+                os.path.join(period_dir, 'combined_cloud.npy'),
+                tda_results[period_name]['combined']['cloud']
+            )
+            np.save(
+                os.path.join(period_dir, 'persistence_diagrams.npy'),
+                tda_results[period_name]['combined']['diagrams']
+            )
+            
+            # Save analysis results
+            period_analysis = analysis_results[period_name]
+            
+            # Save crisis indicators
+            pd.DataFrame([period_analysis['combined']['crisis_indicators']]).to_csv(
+                os.path.join(period_dir, 'crisis_indicators.csv')
+            )
+            
+            # Save regime analysis
+            pd.DataFrame.from_dict(period_analysis['combined']['regimes'], 
+                                 orient='index').to_csv(
+                os.path.join(period_dir, 'regime_analysis.csv')
+            )
+            
+            # Save stability measures
+            pd.DataFrame([period_analysis['combined']['stability']]).to_csv(
+                os.path.join(period_dir, 'stability_measures.csv')
+            )
+            
+        except Exception as e:
+            print(f"Error saving results for {period_name}: {e}")
+            continue
+
 def main():
-    # Create output directory
-    import os
-    os.makedirs('output', exist_ok=True)
-    
-    print("Starting market analysis...")
-    
-    # 1. Load data
-    print("\n1. Loading market data...")
-    sp500, russell, nasdaq = load_data()
-    
-    # 2. Initialize TDA analyzer
-    print("\n2. Initializing TDA analyzer...")
-    tda = MarketTDA()
-    
-    # 3. Prepare data
-    print("\n3. Preparing data...")
-    returns, rolling_data = tda.prepare_data(sp500, russell, nasdaq)
-    print(f"Processed {len(returns)} days of returns data")
-    
-    # 4. Perform TDA analysis
-    print("\n4. Performing TDA analysis...")
-    diagrams, dist_matrix, mds_coords = tda.analyze_market_structure(returns, rolling_data)
-    
-    # 5. Create visualizations
-    print("\n5. Creating visualizations...")
-    tda.plot_analysis(diagrams, mds_coords, returns, save_path='output/market_analysis.png')
-    
-    # 6. Detect market regimes
-    print("\n6. Detecting market regimes...")
-    clusters, regime_analysis = detect_market_regimes(tda, mds_coords, returns)
-    
-    # Print regime analysis
-    print("\nMarket Regime Analysis:")
-    print(regime_analysis)
-    
-    # 7. Save results
-    print("\n7. Saving results...")
-    results = {
-        'returns': returns,
-        'rolling_data': rolling_data,
-        'mds_coords': mds_coords,
-        'clusters': clusters,
-        'regime_analysis': regime_analysis
-    }
-    
-    # Save important results to files
-    returns.to_csv('output/processed_returns.csv')
-    rolling_data.to_csv('output/rolling_features.csv')
-    regime_analysis.to_csv('output/regime_analysis.csv')
-    np.save('output/persistence_diagrams.npy', diagrams)
-    
-    print("\nAnalysis complete! Results saved to 'output' directory.")
-    return results
+    try:
+        # Create output directory
+        output_dir = create_output_directory()
+        print(f"\nOutput will be saved to: {output_dir}")
+        
+        # Load data
+        data = load_data('combined dat')
+        
+        # Initialize analyzers
+        window_size = 20
+        print(f"\nInitializing analysis with window size {window_size}")
+        tda = MarketTDA(window_size=window_size)
+        analyzer = MarketAnalyzer(window_size=window_size)
+        
+        # Define analysis periods
+        periods = {
+            'Full_Period': (data.index.min(), data.index.max()),
+            'Financial_Crisis': ('2008-01-01', '2009-12-31'),
+            'Covid_Crisis': ('2020-01-01', '2020-12-31'),
+            'Recent_Period': ('2021-01-01', data.index.max()),
+            'Pre_Covid': ('2019-01-01', '2019-12-31'),
+            'Post_Covid': ('2021-01-01', '2021-12-31')
+        }
+        
+        # Perform analysis
+        print("\nStarting analysis...")
+        tda_results, analysis_results = analyze_market_periods(
+            data, tda, analyzer, periods
+        )
+        
+        # Generate visualizations
+        print("\nGenerating visualizations...")
+        
+        # TDA visualizations
+        for period_name, period_results in tda_results.items():
+            save_path = os.path.join(output_dir, 'tda', f'{period_name}_tda.png')
+            tda.plot_analysis(period_results, save_path)
+        
+        # Analysis visualizations
+        analyzer.plot_analysis_results(
+            analysis_results,
+            save_path=os.path.join(output_dir, 'plots', 'analysis_summary.png')
+        )
+        
+        # Generate report
+        print("\nGenerating analysis report...")
+        report = analyzer.generate_report(analysis_results)
+        with open(os.path.join(output_dir, 'reports', 'analysis_report.txt'), 'w') as f:
+            f.write(report)
+        
+        # Save results
+        print("\nSaving analysis results...")
+        save_results(tda_results, analysis_results, output_dir)
+        
+        print(f"\nAnalysis complete! Results saved to: {output_dir}")
+        print("\nOutput directory contains:")
+        print("1. TDA visualizations")
+        print("2. Market analysis plots")
+        print("3. Comprehensive report")
+        print("4. Numerical results")
+        
+        return tda_results, analysis_results
+        
+    except Exception as e:
+        print(f"\nCritical error during analysis: {e}")
+        raise
 
 if __name__ == "__main__":
     try:
-        results = main()
+        tda_results, analysis_results = main()
     except Exception as e:
-        print(f"\nError during analysis: {e}")
+        print(f"\nProgram terminated due to error: {e}")
         raise

@@ -5,133 +5,153 @@ from ripser import ripser
 from persim import plot_diagrams
 import matplotlib.pyplot as plt
 from scipy.spatial.distance import pdist, squareform
-import seaborn as sns
 from sklearn.manifold import MDS
-from datetime import datetime, timedelta
 
 class MarketTDA:
-    def __init__(self):
+    def __init__(self, window_size=20):
+        self.window_size = window_size
         self.scaler = StandardScaler()
         
-    def prepare_data(self, sp500, russell, nasdaq):
+    def prepare_data(self, data):
         """
-        Prepare and combine market data for TDA analysis
-        
-        Parameters:
-        sp500, russell, nasdaq: pandas DataFrames with columns ['Date', 'Close']
+        Prepare market data for TDA analysis.
         """
-        # Ensure all dataframes have the same dates
-        common_dates = sorted(set(sp500['Date']) & set(russell['Date']) & set(nasdaq['Date']))
-        
-        # Create combined dataset
-        data = pd.DataFrame(index=common_dates)
-        data['SP500'] = sp500.set_index('Date')['Close']
-        data['Russell'] = russell.set_index('Date')['Close']
-        data['NASDAQ'] = nasdaq.set_index('Date')['Close']
-        data.to_csv("combined dat")
-        
         # Calculate returns
         returns = data.pct_change().dropna()
         
-        # Calculate rolling windows (20-day)
-        rolling_data = pd.DataFrame()
-        for col in returns.columns:
-            rolling_data[f'{col}_mean'] = returns[col].rolling(20).mean()
-            rolling_data[f'{col}_std'] = returns[col].rolling(20).std()
-            rolling_data[f'{col}_skew'] = returns[col].rolling(20).skew()
+        # Remove any infinite values
+        returns = returns.replace([np.inf, -np.inf], np.nan)
+        
+        # Fill NaN values with forward fill then backward fill
+        returns = returns.fillna(method='ffill').fillna(method='bfill')
+        
+        # Scale the returns for each index separately
+        scaled_data = pd.DataFrame(
+            self.scaler.fit_transform(returns),
+            index=returns.index,
+            columns=returns.columns
+        )
+        
+        return scaled_data
+        
+    def create_combined_point_cloud(self, data):
+        """
+        Create point cloud using sliding windows where each point combines
+        all three indices' windows into one high-dimensional point.
+        """
+        window_cloud = []
+        
+        # Create sliding windows
+        for i in range(len(data) - self.window_size + 1):
+            # Take window_size consecutive market states for all indices
+            window = data.iloc[i:i + self.window_size].values
+            # Flatten the window maintaining all indices together
+            window_cloud.append(window.flatten())
             
-        return returns, rolling_data.dropna()
+        cloud = np.array(window_cloud)
+        print(f"Combined cloud shape: {cloud.shape}")
+        return cloud
     
-    def create_point_cloud(self, data, window_size=20):
+    def create_separate_point_clouds(self, data):
         """
-        Create point cloud from rolling windows of market data
+        Create separate point clouds for each index using sliding windows.
         """
-        scaled_data = self.scaler.fit_transform(data)
-        point_cloud = []
+        point_clouds = {}
         
-        for i in range(len(scaled_data) - window_size + 1):
-            window = scaled_data[i:i + window_size].flatten()
-            point_cloud.append(window)
+        for column in data.columns:
+            cloud = []
+            # Create sliding windows for this index
+            for i in range(len(data) - self.window_size + 1):
+                # Take window_size consecutive states for this index
+                window = data[column].iloc[i:i + self.window_size].values
+                cloud.append(window)
             
-        return np.array(point_cloud)
+            point_clouds[column] = np.array(cloud)
+            print(f"{column} cloud shape: {point_clouds[column].shape}")
+            
+        return point_clouds
     
-    def compute_persistence(self, point_cloud, max_dim=2):
+    def analyze_market_structure(self, data):
         """
-        Compute persistence diagrams using Ripser
+        Perform TDA analysis using both approaches with sliding windows.
         """
-        diagrams = ripser(point_cloud, maxdim=max_dim)['diagrams']
-        return diagrams
+        print("Preparing data...")
+        processed_data = self.prepare_data(data)
+        
+        print("Creating point clouds...")
+        # Approach 1: Combined point cloud with sliding windows
+        combined_cloud = self.create_combined_point_cloud(processed_data)
+        
+        # Approach 2: Separate point clouds
+        separate_clouds = self.create_separate_point_clouds(processed_data)
+        
+        print("Computing persistence diagrams...")
+        # Compute persistence diagrams for combined approach
+        print("Computing combined persistence...")
+        ripser_output = ripser(combined_cloud, maxdim=1)
+        combined_diagrams = ripser_output['dgms']
+        
+        print("Computing distance matrices and MDS...")
+        # Compute distance matrix and MDS for combined approach
+        combined_dist_matrix = squareform(pdist(combined_cloud))
+        print("succesfully finished squareform")
+        combined_mds = MDS(n_components=2, dissimilarity='precomputed', random_state=42)
+        combined_mds_coords = combined_mds.fit_transform(combined_dist_matrix)
+        
+        # Compute for separate approaches
+        print("Computing separate persistences...")
+        separate_results = {}
+        for index, cloud in separate_clouds.items():
+            print(f"Processing {index}...")
+            diagrams = ripser(cloud, maxdim=1)['dgms']
+            dist_matrix = squareform(pdist(cloud))
+            mds_coords = MDS(n_components=2, dissimilarity='precomputed', 
+                           random_state=42).fit_transform(dist_matrix)
+            
+            separate_results[index] = {
+                'cloud': cloud,
+                'diagrams': diagrams,
+                'mds_coords': mds_coords
+            }
+        
+        print("Analysis complete.")
+        return {
+            'processed_data': processed_data,
+            'combined': {
+                'cloud': combined_cloud,
+                'diagrams': combined_diagrams,
+                'mds_coords': combined_mds_coords
+            },
+            'separate': separate_results
+        }
     
-    def analyze_market_structure(self, returns, rolling_data, window_size=20):
+    def plot_analysis(self, results, save_path=None):
         """
-        Perform complete TDA analysis on market data
+        Create visualization comparing both approaches.
         """
-        # Create point cloud from rolling features
-        point_cloud = self.create_point_cloud(rolling_data, window_size)
+        fig = plt.figure(figsize=(20, 15))
         
-        # Compute persistence diagrams
-        diagrams = self.compute_persistence(point_cloud)
+        # Plot combined approach results
+        plt.subplot(231)
+        plot_diagrams(results['combined']['diagrams'], show=False)
+        plt.title('Persistence Diagrams (Combined Approach)')
         
-        # Compute distance matrix
-        dist_matrix = squareform(pdist(point_cloud))
+        plt.subplot(232)
+        plt.scatter(
+            results['combined']['mds_coords'][:, 0],
+            results['combined']['mds_coords'][:, 1],
+            alpha=0.6
+        )
+        plt.title('MDS Embedding (Combined Approach)')
         
-        # Perform MDS for visualization
-        mds = MDS(n_components=2, dissimilarity='precomputed', random_state=42)
-        mds_coords = mds.fit_transform(dist_matrix)
-        
-        return diagrams, dist_matrix, mds_coords
-    
-    def plot_analysis(self, diagrams, mds_coords, returns, save_path=None):
-        """
-        Create visualization of TDA analysis
-        """
-        fig = plt.figure(figsize=(15, 10))
-        
-        # Plot persistence diagrams
-        plt.subplot(2, 2, 1)
-        plot_diagrams(diagrams, show=False)
-        plt.title('Persistence Diagrams')
-        
-        # Plot MDS embedding
-        plt.subplot(2, 2, 2)
-        plt.scatter(mds_coords[:, 0], mds_coords[:, 1], alpha=0.6)
-        plt.title('MDS Embedding of Market States')
-        
-        # Plot returns distribution
-        plt.subplot(2, 2, 3)
-        for col in returns.columns:
-            sns.kdeplot(returns[col], label=col)
-        plt.title('Returns Distribution')
-        plt.legend()
-        
-        # Plot correlation heatmap
-        plt.subplot(2, 2, 4)
-        sns.heatmap(returns.corr(), annot=True, cmap='coolwarm')
-        plt.title('Correlation Heatmap')
-        
+        # Plot separate approach results
+        for i, (index, result) in enumerate(results['separate'].items()):
+            # Persistence diagrams
+            plt.subplot(234 + i)
+            plot_diagrams(result['diagrams'], show=False)
+            plt.title(f'Persistence Diagrams ({index})')
+            
         plt.tight_layout()
         if save_path:
             plt.savefig(save_path)
         plt.show()
-
-def detect_market_regimes(tda_analysis, mds_coords, returns, n_clusters=3):
-    """
-    Detect market regimes using clustering on TDA features
-    """
-    from sklearn.cluster import KMeans
-    
-    # Perform clustering on MDS coordinates
-    kmeans = KMeans(n_clusters=n_clusters, random_state=42)
-    clusters = kmeans.fit_predict(mds_coords)
-    
-    # Analyze characteristics of each regime
-    regime_analysis = pd.DataFrame()
-    for i in range(n_clusters):
-        mask = clusters == i
-        regime_returns = returns[mask]
-        
-        regime_analysis.loc[f'Regime {i}', 'Mean Returns SP500'] = regime_returns['SP500'].mean()
-        regime_analysis.loc[f'Regime {i}', 'Volatility SP500'] = regime_returns['SP500'].std()
-        regime_analysis.loc[f'Regime {i}', 'NASDAQ'] = regime_returns['NASDAQ'].mean()
-        
-    return clusters, regime_analysis
