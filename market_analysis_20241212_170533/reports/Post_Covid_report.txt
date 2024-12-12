@@ -1,0 +1,19 @@
+Analysis Summary for Post_Covid
+==================================================
+
+Crisis Indicators:
+- persistence_entropy: 4.588
+- topological_complexity: 19.450
+- feature_stability: inf
+- volatility: 0.926
+- volatility_of_volatility: 0.280
+- max_drawdown: 2.997
+- avg_feature_lifetime: inf
+- max_feature_lifetime: inf
+
+Market Regimes:
+- Number of Regimes: 9
+
+Stability Measures:
+- Mean Local Density: 0.432
+- Network Clustering: 0.000

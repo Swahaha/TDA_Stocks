@@ -1,0 +1,19 @@
+Analysis Summary for Dot_Com_Crash
+==================================================
+
+Crisis Indicators:
+- persistence_entropy: 5.305
+- topological_complexity: 35.100
+- feature_stability: inf
+- volatility: 0.950
+- volatility_of_volatility: 0.277
+- max_drawdown: 2.765
+- avg_feature_lifetime: inf
+- max_feature_lifetime: inf
+
+Market Regimes:
+- Number of Regimes: 6
+
+Stability Measures:
+- Mean Local Density: 0.510
+- Network Clustering: 0.000

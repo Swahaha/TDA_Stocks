@@ -1,0 +1,19 @@
+Analysis Summary for Recent_Period
+==================================================
+
+Crisis Indicators:
+- persistence_entropy: 4.549
+- topological_complexity: 17.450
+- feature_stability: inf
+- volatility: 0.930
+- volatility_of_volatility: 0.289
+- max_drawdown: 2.843
+- avg_feature_lifetime: inf
+- max_feature_lifetime: inf
+
+Market Regimes:
+- Number of Regimes: 9
+
+Stability Measures:
+- Mean Local Density: 0.425
+- Network Clustering: 0.000

@@ -1,0 +1,19 @@
+Analysis Summary for Financial_Crisis
+==================================================
+
+Crisis Indicators:
+- persistence_entropy: 4.018
+- topological_complexity: 10.950
+- feature_stability: inf
+- volatility: 1.010
+- volatility_of_volatility: 0.304
+- max_drawdown: 2.445
+- avg_feature_lifetime: inf
+- max_feature_lifetime: inf
+
+Market Regimes:
+- Number of Regimes: 2
+
+Stability Measures:
+- Mean Local Density: 0.443
+- Network Clustering: 0.000

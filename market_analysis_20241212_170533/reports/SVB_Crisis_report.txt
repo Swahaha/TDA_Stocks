@@ -1,0 +1,19 @@
+Analysis Summary for SVB_Crisis
+==================================================
+
+Crisis Indicators:
+- persistence_entropy: 0.178
+- topological_complexity: 0.600
+- feature_stability: inf
+- volatility: 0.766
+- volatility_of_volatility: nan
+- max_drawdown: 2.458
+- avg_feature_lifetime: inf
+- max_feature_lifetime: inf
+
+Market Regimes:
+- Number of Regimes: 1
+
+Stability Measures:
+- Mean Local Density: 0.212
+- Network Clustering: 0.000

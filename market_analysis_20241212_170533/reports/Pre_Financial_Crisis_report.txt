@@ -1,0 +1,19 @@
+Analysis Summary for Pre_Financial_Crisis
+==================================================
+
+Crisis Indicators:
+- persistence_entropy: 5.153
+- topological_complexity: 33.450
+- feature_stability: inf
+- volatility: 0.988
+- volatility_of_volatility: 0.287
+- max_drawdown: 4.270
+- avg_feature_lifetime: inf
+- max_feature_lifetime: inf
+
+Market Regimes:
+- Number of Regimes: 13
+
+Stability Measures:
+- Mean Local Density: 0.555
+- Network Clustering: 0.000

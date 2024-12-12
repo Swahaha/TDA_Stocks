@@ -1,0 +1,19 @@
+Analysis Summary for Post_Financial_Crisis
+==================================================
+
+Crisis Indicators:
+- persistence_entropy: 5.258
+- topological_complexity: 36.700
+- feature_stability: inf
+- volatility: 0.960
+- volatility_of_volatility: 0.305
+- max_drawdown: 2.097
+- avg_feature_lifetime: inf
+- max_feature_lifetime: inf
+
+Market Regimes:
+- Number of Regimes: 14
+
+Stability Measures:
+- Mean Local Density: 0.591
+- Network Clustering: 0.000

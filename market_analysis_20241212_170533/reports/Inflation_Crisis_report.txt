@@ -1,0 +1,19 @@
+Analysis Summary for Inflation_Crisis
+==================================================
+
+Crisis Indicators:
+- persistence_entropy: 4.559
+- topological_complexity: 16.800
+- feature_stability: inf
+- volatility: 0.993
+- volatility_of_volatility: 0.182
+- max_drawdown: 2.374
+- avg_feature_lifetime: inf
+- max_feature_lifetime: inf
+
+Market Regimes:
+- Number of Regimes: 6
+
+Stability Measures:
+- Mean Local Density: 0.453
+- Network Clustering: 0.000
