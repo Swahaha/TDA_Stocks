@@ -345,7 +345,7 @@ def main():
         print(f"\nOutput will be saved to: {output_dir}")
         
         # Load data
-        data = load_data('combined_data.csv')
+        data = load_data('combined_indices.csv')
         
         # Initialize analyzers
         window_size = 20
@@ -353,14 +353,20 @@ def main():
         tda = MarketTDA(window_size=window_size)
         analyzer = MarketAnalyzer(window_size=window_size)
         
-        # Define analysis periods
         periods = {
-            'Full_Period': (data.index.min(), data.index.max()),
-            'Covid_Crisis': ('2020-01-01', '2020-12-31'),
-            'Recent_Period': ('2021-01-01', data.index.max()),
-            'Pre_Covid': ('2019-01-01', '2019-12-31'),
-            'Post_Covid': ('2021-01-01', '2021-12-31')
-        }
+    'Full_Period': (data.index.min(), data.index.max()),
+    'Dot_Com_Crash': ('2001-03-01', '2002-10-31'),  # Tech bubble burst & post-9/11 decline
+    'Financial_Crisis': ('2008-09-01', '2009-03-31'),  # Great Financial Crisis peak period
+    'Covid_Crash': ('2020-02-19', '2020-03-23'),  # Sharp COVID-19 market decline
+    'Post_Covid_Recovery': ('2020-03-24', '2020-08-31'),  # Rapid recovery phase
+    'Inflation_Crisis': ('2022-01-01', '2022-10-31'),  # High inflation & rate hikes period
+    'SVB_Crisis': ('2023-03-01', '2023-03-31'),  # Silicon Valley Bank collapse
+    'Recent_Period': ('2024-01-01', data.index.max()),
+    'Pre_Financial_Crisis': ('2007-01-01', '2008-08-31'),
+    'Post_Financial_Crisis': ('2009-04-01', '2010-12-31'),
+    'Pre_Covid': ('2019-01-01', '2019-12-31'),
+    'Post_Covid': ('2021-01-01', '2021-12-31')
+}
         
         # Perform analysis
         print("\nStarting analysis...")
